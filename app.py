@@ -4,7 +4,9 @@ import os
 from transcriber import Transcriber
 from soap_generator import SOAPGenerator
 from datetime import datetime
+from dotenv import load_dotenv
 
+load_dotenv()  # .env 파일 로드
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB 제한
 app.config['UPLOAD_FOLDER'] = 'temp'
@@ -133,6 +135,5 @@ def add_medication():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print("🚀 의료 차트 작성 웹앱 시작!")
-    print("🌐 브라우저에서 http://localhost:5000 접속\n")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))  # Render가 할당하는 포트 사용
+    app.run(host='0.0.0.0', port=port)
