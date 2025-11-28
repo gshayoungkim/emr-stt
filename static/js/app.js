@@ -235,47 +235,72 @@ document.getElementById('processRecordedBtn').addEventListener('click', async ()
 let currentFilepath = null;
 
 // 업로드 및 STT
-document.getElementById('uploadBtn').addEventListener('click', async () => {
-    const fileInput = document.getElementById('audioFile');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        showStatus('uploadStatus', '파일을 선택해주세요', 'error');
+document.getElementById('processRecordedBtn').addEventListener('click', async () => {
+    if (!window.recordedAudioBlob) {
+        alert('녹음된 오디오가 없습니다.');
         return;
     }
     
     showStatus('uploadStatus', '업로드 중...', 'loading');
     
-    // 파일 업로드
+    // FormData로 Blob 업로드
     const formData = new FormData();
-    formData.append('audio', file);
+    formData.append('audio', window.recordedAudioBlob, 'recording.webm');
     
     try {
+        // 1. 파일 업로드
         const uploadResponse = await fetch('/api/upload', {
             method: 'POST',
             body: formData
         });
         
-        const uploadData = await uploadResponse.json();
+        // 응답 상태 확인
+        if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            throw new Error(`업로드 실패 (${uploadResponse.status}): ${errorText}`);
+        }
+        
+        // JSON 파싱 시도
+        let uploadData;
+        try {
+            uploadData = await uploadResponse.json();
+        } catch (jsonError) {
+            const responseText = await uploadResponse.text();
+            console.error('서버 응답:', responseText);
+            throw new Error('서버 응답이 올바른 JSON 형식이 아닙니다: ' + responseText);
+        }
         
         if (!uploadData.success) {
-            throw new Error(uploadData.error);
+            throw new Error(uploadData.error || '업로드 실패');
         }
         
         currentFilepath = uploadData.filepath;
         showStatus('uploadStatus', '음성 인식 중... (1-2분 소요)', 'loading');
         
-        // STT 처리
+        // 2. STT 처리
         const transcribeResponse = await fetch('/api/transcribe', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({filepath: currentFilepath})
         });
         
-        const transcribeData = await transcribeResponse.json();
+        // 응답 상태 확인
+        if (!transcribeResponse.ok) {
+            const errorText = await transcribeResponse.text();
+            throw new Error(`STT 실패 (${transcribeResponse.status}): ${errorText}`);
+        }
+        
+        let transcribeData;
+        try {
+            transcribeData = await transcribeResponse.json();
+        } catch (jsonError) {
+            const responseText = await transcribeResponse.text();
+            console.error('서버 응답:', responseText);
+            throw new Error('STT 서버 응답이 올바른 JSON 형식이 아닙니다');
+        }
         
         if (!transcribeData.success) {
-            throw new Error(transcribeData.error);
+            throw new Error(transcribeData.error || 'STT 처리 실패');
         }
         
         // 결과 표시
@@ -283,7 +308,11 @@ document.getElementById('uploadBtn').addEventListener('click', async () => {
         document.getElementById('transcriptSection').style.display = 'block';
         showStatus('uploadStatus', '✅ 음성 인식 완료!', 'success');
         
+        // 스크롤
+        document.getElementById('transcriptSection').scrollIntoView({ behavior: 'smooth' });
+        
     } catch (error) {
+        console.error('전체 오류:', error);
         showStatus('uploadStatus', `❌ 오류: ${error.message}`, 'error');
     }
 });
