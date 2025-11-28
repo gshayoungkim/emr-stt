@@ -6,4 +6,4 @@ tts_sample.mp3:Zone.Identifier
 tts_sample2.mp3:Zone.Identifier
 __pycache__/audio_recorder.cpython-311.pyc
 __pycache__/soap_generator.cpython-311.pyc
-__pycache__/transcriber.cpython-311.pyc
+__pycache__/transcriber.cpython-311.pyc.env
