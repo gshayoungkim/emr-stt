@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>의료 차트 작성 도우미</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏥 의료 차트 작성 도우미</h1>
+            <p>음성 인식을 통한 SOAP 노트 자동 생성</p>
+        </header>
+
+        <main>
+            <!-- Step 1: 오디오 입력 -->
+            <section class="card">
+                <h2>🎤 Step 1: 오디오 입력</h2>
+                
+                <!-- 탭 선택 -->
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="record">실시간 녹음</button>
+                    <button class="tab-btn" data-tab="upload">파일 업로드</button>
+                </div>
+                
+                <!-- 실시간 녹음 탭 -->
+                <div id="recordTab" class="tab-content active">
+                    <div class="record-controls">
+                        <button id="startRecordBtn" class="btn btn-danger">
+                            🔴 녹음 시작
+                        </button>
+                        <button id="stopRecordBtn" class="btn btn-secondary" disabled>
+                            ⏹️ 녹음 종료
+                        </button>
+                        <span id="recordingTime" class="recording-time">00:00</span>
+                    </div>
+                    <div class="audio-visualizer">
+                        <canvas> id="visualizer" width="600" height="1000"></canvas>
+                    </div>
+                    <div id="recordedAudioContainer" style="display: none;">
+                        <p>✅ 녹음 완료!</p>
+                        <audio id="recordedAudio" controls></audio>
+                        <button id="processRecordedBtn" class="btn btn-primary">
+                            음성 인식 시작
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 파일 업로드 탭 -->
+                <div id="uploadTab" class="tab-content">
+                    <div class="upload-area">
+                        <input type="file" id="audioFile" accept="audio/*,.mp3,.wav,.m4a" />
+                        <button id="uploadBtn" class="btn btn-primary">업로드 및 음성 인식</button>
+                    </div>
+                </div>
+                
+                <div id="uploadStatus" class="status"></div>
+            </section>
+
+            <!-- Step 2: 전사 결과 -->
+            <section class="card" id="transcriptSection" style="display: none;">
+                <h2>📄 Step 2: 음성 인식 결과</h2>
+                <textarea id="transcript" rows="6" placeholder="음성 인식 결과가 여기 표시됩니다..."></textarea>
+                <div class="form-group">
+                    <label for="department">진료과:</label>
+                    <select id="department">
+                        <option value="내과">내과</option>
+                        <option value="정형외과">정형외과</option>
+                        <option value="소아과">소아과</option>
+                        <option value="이비인후과">이비인후과</option>
+                        <option value="피부과">피부과</option>
+                    </select>
+                </div>
+                <button id="generateSoapBtn" class="btn btn-success">SOAP 노트 생성</button>
+            </section>
+
+            <!-- Step 3: SOAP 노트 -->
+            <section class="card" id="soapSection" style="display: none;">
+                <h2>📋 Step 3: 생성된 SOAP 노트</h2>
+                <textarea id="soapNote" rows="15" placeholder="SOAP 노트가 여기 표시됩니다..."></textarea>
+                <div class="button-group">
+                    <button id="copyBtn" class="btn btn-primary">📋 복사</button>
+                    <button id="downloadBtn" class="btn btn-secondary">💾 다운로드</button>
+                    <button id="searchMedBtn" class="btn btn-info">💊 약물 검색</button>
+                </div>
+            </section>
+
+            <!-- 약물 검색 모달 -->
+            <div id="medModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h3>💊 약물 템플릿 검색</h3>
+                    <input type="text" id="medSearchInput" placeholder="검색어 입력 (예: 해열, 타이레놀)" />
+                    <button id="searchBtn" class="btn btn-primary">검색</button>
+                    <div id="searchResults"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>⚠️ 이 시스템은 의사의 진료 보조 도구입니다. 최종 진단과 처방은 의사가 직접 확인해야 합니다.</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
