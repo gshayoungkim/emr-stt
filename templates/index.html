@@ -36,7 +36,7 @@
                         <span id="recordingTime" class="recording-time">00:00</span>
                     </div>
                     <div class="audio-visualizer">
-                        <canvas> id="visualizer" width="600" height="1000"></canvas>
+                        <canvas></canvas> id="visualizer" width="600" height="1000"></canvas>
                     </div>
                     <div id="recordedAudioContainer" style="display: none;">
                         <p>✅ 녹음 완료!</p>
@@ -73,7 +73,10 @@
                     </select>
                 </div>
                 <button id="generateSoapBtn" class="btn btn-success">SOAP 노트 생성</button>
+                <!-- ✅ 수정 2: SOAP 생성 상태 메시지 영역 추가 -->
+                <div id="soapStatus" class="status"></div>
             </section>
+
 
             <!-- Step 3: SOAP 노트 -->
             <section class="card" id="soapSection" style="display: none;">

@@ -22,12 +22,20 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
             content.classList.remove('active');
         });
         document.getElementById(tabName + 'Tab').classList.add('active');
+        
+        // ✅ 수정 1: 탭 전환 시 상태 메시지 초기화
+        document.getElementById('uploadStatus').style.display = 'none';
+        document.getElementById('uploadStatus').textContent = '';
+        document.getElementById('uploadStatus').className = 'status';
     });
 });
 
 // 녹음 시작
 document.getElementById('startRecordBtn').addEventListener('click', async () => {
     try {
+        // ✅ 수정 1: 녹음 시작 전 상태 메시지 초기화
+        document.getElementById('uploadStatus').style.display = 'none';
+        
         // 마이크 권한 요청
         const stream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
@@ -38,10 +46,14 @@ document.getElementById('startRecordBtn').addEventListener('click', async () => 
             } 
         });
         
+        // MIME 타입 확인
+        let mimeType = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'audio/webm';
+        }
+        
         // MediaRecorder 초기화
-        mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm;codecs=opus'
-        });
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
         
         audioChunks = [];
         
@@ -72,7 +84,7 @@ document.getElementById('startRecordBtn').addEventListener('click', async () => 
         };
         
         // 녹음 시작
-        mediaRecorder.start(100); // 100ms마다 데이터 수집
+        mediaRecorder.start(100);
         
         // UI 업데이트
         document.getElementById('startRecordBtn').disabled = true;
@@ -90,7 +102,13 @@ document.getElementById('startRecordBtn').addEventListener('click', async () => 
         
     } catch (error) {
         console.error('녹음 시작 실패:', error);
-        alert('마이크 접근 권한이 필요합니다.');
+        
+        // ✅ 수정 3: 권한 거부 시 더 명확한 메시지
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            showStatus('uploadStatus', '⚠️ 마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.', 'error');
+        } else {
+            showStatus('uploadStatus', `❌ 녹음 시작 실패: ${error.message}`, 'error');
+        }
     }
 });
 
@@ -107,6 +125,7 @@ document.getElementById('stopRecordBtn').addEventListener('click', () => {
         clearInterval(recordingInterval);
         document.getElementById('recordingTime').textContent = '00:00';
         
+        // ✅ 수정 1: 녹음 완료 시 상태를 성공으로만 표시 (에러 메시지 숨김)
         showStatus('uploadStatus', '✅ 녹음 완료!', 'success');
     }
 });
@@ -172,7 +191,6 @@ function stopVisualizer() {
         audioContext.close();
     }
     
-    // 캔버스 초기화
     const canvas = document.getElementById('visualizer');
     const canvasCtx = canvas.getContext('2d');
     canvasCtx.fillStyle = '#f8f9fa';
@@ -182,13 +200,12 @@ function stopVisualizer() {
 // 녹음된 오디오 처리
 document.getElementById('processRecordedBtn').addEventListener('click', async () => {
     if (!window.recordedAudioBlob) {
-        alert('녹음된 오디오가 없습니다.');
+        showStatus('uploadStatus', '❌ 녹음된 오디오가 없습니다.', 'error');
         return;
     }
     
     showStatus('uploadStatus', '업로드 중...', 'loading');
     
-    // FormData로 Blob 업로드
     const formData = new FormData();
     formData.append('audio', window.recordedAudioBlob, 'recording.webm');
     
@@ -198,146 +215,12 @@ document.getElementById('processRecordedBtn').addEventListener('click', async ()
             body: formData
         });
         
-        const uploadData = await uploadResponse.json();
-        
-        if (!uploadData.success) {
-            throw new Error(uploadData.error);
-        }
-        
-        currentFilepath = uploadData.filepath;
-        showStatus('uploadStatus', '음성 인식 중... (1-2분 소요)', 'loading');
-        
-        // STT 처리
-        const transcribeResponse = await fetch('/api/transcribe', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({filepath: currentFilepath})
-        });
-        
-        const transcribeData = await transcribeResponse.json();
-        
-        if (!transcribeData.success) {
-            throw new Error(transcribeData.error);
-        }
-        
-        // 결과 표시
-        document.getElementById('transcript').value = transcribeData.transcript;
-        document.getElementById('transcriptSection').style.display = 'block';
-        showStatus('uploadStatus', '✅ 음성 인식 완료!', 'success');
-        
-        // 스크롤
-        document.getElementById('transcriptSection').scrollIntoView({ behavior: 'smooth' });
-        
-    } catch (error) {
-        showStatus('uploadStatus', `❌ 오류: ${error.message}`, 'error');
-    }
-});
-let currentFilepath = null;
-
-
-// 파일 업로드 탭의 버튼
-document.getElementById('uploadBtn').addEventListener('click', async () => {
-    const fileInput = document.getElementById('audioFile');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        showStatus('uploadStatus', '파일을 선택해주세요', 'error');
-        return;
-    }
-    
-    console.log('파일 선택됨:', file.name); // 디버깅용
-    
-    showStatus('uploadStatus', '업로드 중...', 'loading');
-    
-    // 파일 업로드
-    const formData = new FormData();
-    formData.append('audio', file);
-    
-    try {
-        console.log('업로드 시작...'); // 디버깅용
-        
-        const uploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData
-        });
-        
-        console.log('업로드 응답 상태:', uploadResponse.status); // 디버깅용
-        
-        const uploadData = await uploadResponse.json();
-        console.log('업로드 데이터:', uploadData); // 디버깅용
-        
-        if (!uploadData.success) {
-            throw new Error(uploadData.error);
-        }
-        
-        currentFilepath = uploadData.filepath;
-        showStatus('uploadStatus', '음성 인식 중... (1-2분 소요)', 'loading');
-        
-        // STT 처리
-        console.log('STT 시작...'); // 디버깅용
-        
-        const transcribeResponse = await fetch('/api/transcribe', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({filepath: currentFilepath})
-        });
-        
-        console.log('STT 응답 상태:', transcribeResponse.status); // 디버깅용
-        
-        const transcribeData = await transcribeResponse.json();
-        console.log('STT 데이터:', transcribeData); // 디버깅용
-        
-        if (!transcribeData.success) {
-            throw new Error(transcribeData.error);
-        }
-        
-        // 결과 표시
-        document.getElementById('transcript').value = transcribeData.transcript;
-        document.getElementById('transcriptSection').style.display = 'block';
-        showStatus('uploadStatus', '✅ 음성 인식 완료!', 'success');
-        
-    } catch (error) {
-        console.error('전체 오류:', error); // 디버깅용
-        showStatus('uploadStatus', `❌ 오류: ${error.message}`, 'error');
-    }
-});
-
-
-// 업로드 및 STT
-document.getElementById('processRecordedBtn').addEventListener('click', async () => {
-    if (!window.recordedAudioBlob) {
-        alert('녹음된 오디오가 없습니다.');
-        return;
-    }
-    
-    showStatus('uploadStatus', '업로드 중...', 'loading');
-    
-    // FormData로 Blob 업로드
-    const formData = new FormData();
-    formData.append('audio', window.recordedAudioBlob, 'recording.webm');
-    
-    try {
-        // 1. 파일 업로드
-        const uploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData
-        });
-        
-        // 응답 상태 확인
         if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
             throw new Error(`업로드 실패 (${uploadResponse.status}): ${errorText}`);
         }
         
-        // JSON 파싱 시도
-        let uploadData;
-        try {
-            uploadData = await uploadResponse.json();
-        } catch (jsonError) {
-            const responseText = await uploadResponse.text();
-            console.error('서버 응답:', responseText);
-            throw new Error('서버 응답이 올바른 JSON 형식이 아닙니다: ' + responseText);
-        }
+        const uploadData = await uploadResponse.json();
         
         if (!uploadData.success) {
             throw new Error(uploadData.error || '업로드 실패');
@@ -346,38 +229,27 @@ document.getElementById('processRecordedBtn').addEventListener('click', async ()
         currentFilepath = uploadData.filepath;
         showStatus('uploadStatus', '음성 인식 중... (1-2분 소요)', 'loading');
         
-        // 2. STT 처리
         const transcribeResponse = await fetch('/api/transcribe', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({filepath: currentFilepath})
         });
         
-        // 응답 상태 확인
         if (!transcribeResponse.ok) {
             const errorText = await transcribeResponse.text();
             throw new Error(`STT 실패 (${transcribeResponse.status}): ${errorText}`);
         }
         
-        let transcribeData;
-        try {
-            transcribeData = await transcribeResponse.json();
-        } catch (jsonError) {
-            const responseText = await transcribeResponse.text();
-            console.error('서버 응답:', responseText);
-            throw new Error('STT 서버 응답이 올바른 JSON 형식이 아닙니다');
-        }
+        const transcribeData = await transcribeResponse.json();
         
         if (!transcribeData.success) {
             throw new Error(transcribeData.error || 'STT 처리 실패');
         }
         
-        // 결과 표시
         document.getElementById('transcript').value = transcribeData.transcript;
         document.getElementById('transcriptSection').style.display = 'block';
         showStatus('uploadStatus', '✅ 음성 인식 완료!', 'success');
         
-        // 스크롤
         document.getElementById('transcriptSection').scrollIntoView({ behavior: 'smooth' });
         
     } catch (error) {
@@ -386,7 +258,69 @@ document.getElementById('processRecordedBtn').addEventListener('click', async ()
     }
 });
 
-// SOAP 생성
+// ==================== 파일 업로드 ====================
+let currentFilepath = null;
+
+document.getElementById('uploadBtn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('audioFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showStatus('uploadStatus', '❌ 파일을 선택해주세요', 'error');
+        return;
+    }
+    
+    showStatus('uploadStatus', '업로드 중...', 'loading');
+    
+    const formData = new FormData();
+    formData.append('audio', file);
+    
+    try {
+        const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!uploadResponse.ok) {
+            throw new Error(`업로드 실패 (${uploadResponse.status})`);
+        }
+        
+        const uploadData = await uploadResponse.json();
+        
+        if (!uploadData.success) {
+            throw new Error(uploadData.error);
+        }
+        
+        currentFilepath = uploadData.filepath;
+        showStatus('uploadStatus', '음성 인식 중... (1-2분 소요)', 'loading');
+        
+        const transcribeResponse = await fetch('/api/transcribe', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({filepath: currentFilepath})
+        });
+        
+        if (!transcribeResponse.ok) {
+            throw new Error(`STT 실패 (${transcribeResponse.status})`);
+        }
+        
+        const transcribeData = await transcribeResponse.json();
+        
+        if (!transcribeData.success) {
+            throw new Error(transcribeData.error);
+        }
+        
+        document.getElementById('transcript').value = transcribeData.transcript;
+        document.getElementById('transcriptSection').style.display = 'block';
+        showStatus('uploadStatus', '✅ 음성 인식 완료!', 'success');
+        
+    } catch (error) {
+        console.error('전체 오류:', error);
+        showStatus('uploadStatus', `❌ 오류: ${error.message}`, 'error');
+    }
+});
+
+// ==================== SOAP 생성 ====================
 document.getElementById('generateSoapBtn').addEventListener('click', async () => {
     const transcript = document.getElementById('transcript').value;
     const department = document.getElementById('department').value;
@@ -396,7 +330,8 @@ document.getElementById('generateSoapBtn').addEventListener('click', async () =>
         return;
     }
     
-    showStatus('uploadStatus', 'SOAP 노트 생성 중...', 'loading');
+    // ✅ 수정 2: SOAP 생성 상태를 별도 영역에 표시
+    showStatus('soapStatus', 'SOAP 노트 생성 중...', 'loading');
     
     try {
         const response = await fetch('/api/generate-soap', {
@@ -413,10 +348,10 @@ document.getElementById('generateSoapBtn').addEventListener('click', async () =>
         
         document.getElementById('soapNote').value = data.soap_note;
         document.getElementById('soapSection').style.display = 'block';
-        showStatus('uploadStatus', '✅ SOAP 노트 생성 완료!', 'success');
+        showStatus('soapStatus', '✅ SOAP 노트 생성 완료!', 'success');
         
     } catch (error) {
-        showStatus('uploadStatus', `❌ 오류: ${error.message}`, 'error');
+        showStatus('soapStatus', `❌ 오류: ${error.message}`, 'error');
     }
 });
 
@@ -490,4 +425,5 @@ function showStatus(elementId, message, type) {
     const statusEl = document.getElementById(elementId);
     statusEl.textContent = message;
     statusEl.className = `status ${type}`;
+    statusEl.style.display = 'block';
 }
