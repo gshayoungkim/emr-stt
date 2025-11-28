@@ -22,8 +22,8 @@ def init_models():
     """모델 초기화 (처음 한 번만)"""
     global transcriber, soap_gen
     if transcriber is None:
-        print("🔄 Whisper 모델 로딩 중...")
-        transcriber = Transcriber(model_name="base")
+        print("🔄 Transcriber 초기화 중...")
+        transcriber = Transcriber()  # model_name 파라미터 제거
     if soap_gen is None:
         soap_gen = SOAPGenerator()
 
