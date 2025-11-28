@@ -6,3 +6,4 @@ temp/
 *.wav
 *:Zone.Identifier
 .DS_Store
+transcriber_whisper.py
